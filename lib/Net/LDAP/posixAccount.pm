@@ -21,22 +21,18 @@ our $VERSION = '1.0.0';
 
 =head1 SYNOPSIS
 
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
     use Net::LDAP::posixAccount;
 
-    #Initiates the module with a base DN of 'ou=users,dc=foo'.
-    my $foo = Net::LDAP::posixAccount->new({baseDN=>'ou=user,dc=foo'});
+    # Initiates the module with a base DN of 'ou=users,dc=foo'.
+    my $foo = Net::LDAP::posixAccount->new(baseDN=>'ou=user,dc=foo');
 
-    #creates a new entry with the minimum requirements
-    my $entry = $foo->create({name=>'vvelox', gid=>'404', uid=>'404'});
+    # create the user vvelox with a gid of 404 and a uid of 404
+    my $entry = $foo->create(name=>'vvelox', gid=>'404', uid=>'404');
 
-    #add it using $ldap, a previously created Net::LDAP object
+    # add it using $ldap, a previously created Net::LDAP object
     $entry->update($ldap);
 
-=head1 FUNCTIONS
+=head1 METHODS
 
 =head2 new
 
@@ -55,17 +51,9 @@ not present.
 =cut
 
 sub new {
-	my %args;
-	if ( defined( $_[1] ) ) {
-		%args = %{ $_[1] };
-	}
+	my ( $blank, %args ) = @_;
 
 	#returns undef if the baseDN is not set
-	if ( !defined( $args{baseDN} ) ) {
-		warn('Net-LDAP-postixAccount new:0: "baseDN" is not defined');
-		return undef;
-	}
-
 	my $self = {
 		perror        => undef,
 		error         => undef,
@@ -74,20 +62,43 @@ sub new {
 		errorString   => "",
 		errorExtra    => {
 			all_errors_fatal => 1,
-			flags            => {},
+			flags            => {
+				1 => 'missing_name',
+				2 => 'missing_uid',
+				3 => 'missing_gid',
+				4 => 'invalid_value',
+				5 => 'missing_baseDN',
+				6 => 'invalid_baseDN',
+			},
 			fatal_flags      => {},
 			perror_not_fatal => 0,
 		},
-		baseDN => $args{baseDN}
+		baseDN  => undef,
+		topless => undef,
 	};
 	bless $self;
 
 	#if it is defined it sets the topless setting to what ever it is
 	if ( defined( $args{topless} ) ) {
 		$self->{topless} = $args{topless};
-	} else {
-		$self->{topless} = undef;
 	}
+
+	if ( !defined( $args{baseDN} ) ) {
+		$self->{error}       = 5;
+		$self->{errorString} = 'baseDN is not defined';
+		$self->{perror}      = 1;
+		return $self;
+	}
+
+	# check to see if the base DN looks legit
+	if ( $args{baseDN} !~ /^(?:(?:[A-Za-z0-9]+=[^,]+),\s*)*(?:[A-Za-z0-9]+=[^,]+)$/ ) {
+		$self->{error}       = 6;
+		$self->{errorString} = 'baseDN, "' . $args{baseDN} . '", does not appear to be a valid DN';
+		$self->{perror}      = 1;
+		return $self;
+	}
+
+	$self->{baseDN} = $args{baseDN};
 
 	return $self;
 } ## end sub new
@@ -161,18 +172,15 @@ This is the max GID that will be used if 'gid' is set to 'AUTO'. The default is
 =cut
 
 sub create {
-	my $self = $_[0];
-	my %args;
-	if ( defined( $_[1] ) ) {
-		%args = %{ $_[1] };
-	}
+	my ( $self, %args ) = @_;
+
+	$self->errorblank;
 
 	#error if name is not defined
 	if ( !defined( $args{name} ) ) {
-		warn('Net-LDAP-posixAccount create:1: name not defined');
 		$self->{error}       = 1;
 		$self->{errorString} = 'name not defined';
-		return undef;
+		$self->warn;
 	}
 
 	#set CN to name if it is not defined
@@ -182,10 +190,9 @@ sub create {
 
 	#error if uid is not defined
 	if ( !defined( $args{uid} ) ) {
-		warn('Net-LDAP-posixAccount create:2: uid not defined');
 		$self->{error}       = 2;
 		$self->{errorString} = 'uid not defined';
-		return undef;
+		$self->warn;
 	}
 
 	#handles choosing the UID if it is set to AUTO
@@ -202,10 +209,8 @@ sub create {
 
 		#creates it
 		my $uidhelper = Sys::User::UIDhelper->new(
-			{
-				min => $args{minUID},
-				max => $args{maxUID}
-			}
+			min => $args{minUID},
+			max => $args{maxUID}
 		);
 		#gets the first free one
 		$args{uid} = $uidhelper->firstfree();
@@ -213,10 +218,9 @@ sub create {
 
 	#error if gid is not defined
 	if ( !defined( $args{gid} ) ) {
-		warn('Net-LDAP-posixAccount create:3: gid not defined');
 		$self->{error}       = 3;
 		$self->{errorString} = 'gid not defined';
-		return undef;
+		$self->warn;
 	}
 
 	#handles choosing the GID if it is set to AUTO
@@ -233,10 +237,8 @@ sub create {
 
 		#creates it
 		my $gidhelper = Sys::Group::GIDhelper->new(
-			{
-				min => $args{minGID},
-				max => $args{maxGID}
-			}
+			min => $args{minGID},
+			max => $args{maxGID}
 		);
 		#gets the first free one
 		$args{gid} = $gidhelper->firstfree();
@@ -287,10 +289,9 @@ sub create {
 
 	#error if none is matched
 	if ( !defined($dn) ) {
-		warn('Net-LDAP-posixAccount create:4: primary is a invalid value');
 		$self->{error}       = 4;
 		$self->{errorString} = 'primary is a invalid value';
-		return undef;
+		$self->warn;
 	}
 
 	#forms the DN if it is using the UID
@@ -355,27 +356,35 @@ sub errorBlank {
 	return 1;
 }
 
-=head1 Error Codes
+=head1 Error Codes/Flags
 
-=head2 0
-
-Missing baseDN.
-
-=head2 1
+=head2 1/missing_name
 
 'name' not defined.
 
-=head2 2
+=head2 2/missing_uid
 
 'uid' not defined.
 
-=head2 3
+=head2 3/missing_gid
 
 'gid' not defined.
 
-=head2 4
+=head2 4/invalid_value
 
 The primary value is a invalid value.
+
+=head2 5/missing_baseDN
+
+Missing baseDN.
+
+=head2 6/invalid_baseDN
+
+The specified base DN does does not appear to be a DN.
+
+Checked via the regex below.
+
+    ^(?:(?:[A-Za-z0-9]+=[^,]+),\s*)*(?:[A-Za-z0-9]+=[^,]+)$
 
 =head1 AUTHOR
 
