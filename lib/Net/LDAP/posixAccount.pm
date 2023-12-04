@@ -5,6 +5,7 @@ use strict;
 use Net::LDAP::Entry;
 use Sys::User::UIDhelper;
 use Sys::Group::GIDhelper;
+use base 'Error::Helper';
 
 =head1 NAME
 
@@ -12,12 +13,11 @@ Net::LDAP::posixAccount - Creates new Net::LDAP::Entry objects for a posixAccoun
 
 =head1 VERSION
 
-Version 0.0.2
+Version 1.0.0
 
 =cut
 
-our $VERSION = '0.0.2';
-
+our $VERSION = '1.0.0';
 
 =head1 SYNOPSIS
 
@@ -56,28 +56,41 @@ not present.
 
 sub new {
 	my %args;
-	if(defined($_[1])){
-		%args= %{$_[1]};
-	};
+	if ( defined( $_[1] ) ) {
+		%args = %{ $_[1] };
+	}
 
 	#returns undef if the baseDN is not set
-	if (!defined($args{baseDN})) {
+	if ( !defined( $args{baseDN} ) ) {
 		warn('Net-LDAP-postixAccount new:0: "baseDN" is not defined');
 		return undef;
 	}
 
-	my $self={error=>undef, set=>undef, baseDN=>$args{baseDN}};
+	my $self = {
+		perror        => undef,
+		error         => undef,
+		errorLine     => undef,
+		errorFilename => undef,
+		errorString   => "",
+		errorExtra    => {
+			all_errors_fatal => 1,
+			flags            => {},
+			fatal_flags      => {},
+			perror_not_fatal => 0,
+		},
+		baseDN => $args{baseDN}
+	};
 	bless $self;
 
 	#if it is defined it sets the topless setting to what ever it is
-	if (defined($args{topless})) {
-		$self->{topless}=$args{topless};
-	}else {
-		$self->{topless}=undef;
+	if ( defined( $args{topless} ) ) {
+		$self->{topless} = $args{topless};
+	} else {
+		$self->{topless} = undef;
 	}
 
 	return $self;
-}
+} ## end sub new
 
 =head2 create
 
@@ -148,151 +161,155 @@ This is the max GID that will be used if 'gid' is set to 'AUTO'. The default is
 =cut
 
 sub create {
-	my $self=$_[0];
+	my $self = $_[0];
 	my %args;
-	if(defined($_[1])){
-		%args= %{$_[1]};
-	};
+	if ( defined( $_[1] ) ) {
+		%args = %{ $_[1] };
+	}
 
 	#error if name is not defined
-	if (!defined($args{name})) {
+	if ( !defined( $args{name} ) ) {
 		warn('Net-LDAP-posixAccount create:1: name not defined');
-		$self->{error}=1;
-		$self->{errorString}='name not defined';
- 		return undef;
+		$self->{error}       = 1;
+		$self->{errorString} = 'name not defined';
+		return undef;
 	}
 
 	#set CN to name if it is not defined
-	if (!defined($args{cn})) {
-		$args{cn}=$args{name};
+	if ( !defined( $args{cn} ) ) {
+		$args{cn} = $args{name};
 	}
 
 	#error if uid is not defined
-	if (!defined($args{uid})) {
+	if ( !defined( $args{uid} ) ) {
 		warn('Net-LDAP-posixAccount create:2: uid not defined');
-		$self->{error}=2;
-		$self->{errorString}='uid not defined';
+		$self->{error}       = 2;
+		$self->{errorString} = 'uid not defined';
 		return undef;
 	}
 
 	#handles choosing the UID if it is set to AUTO
-	if ($args{uid} eq 'AUTO') {
+	if ( $args{uid} eq 'AUTO' ) {
 		#sets the minUID if it is not defined
-		if (!defined($args{minUID} eq '1001')) {
-			$args{uid}='1001';
+		if ( !defined( $args{minUID} eq '1001' ) ) {
+			$args{uid} = '1001';
 		}
 
 		#sets the maxUID if it is not defined
-		if (!defined($args{minUID})) {
-			$args{uid}='64000';
+		if ( !defined( $args{minUID} ) ) {
+			$args{uid} = '64000';
 		}
 
 		#creates it
-		my $uidhelper=Sys::User::UIDhelper->new({
-												 min=>$args{minUID},
-												 max=>$args{maxUID}
-												 });
+		my $uidhelper = Sys::User::UIDhelper->new(
+			{
+				min => $args{minUID},
+				max => $args{maxUID}
+			}
+		);
 		#gets the first free one
-		$args{uid}=$uidhelper->firstfree();
-	}
+		$args{uid} = $uidhelper->firstfree();
+	} ## end if ( $args{uid} eq 'AUTO' )
 
 	#error if gid is not defined
-	if (!defined($args{gid})) {
+	if ( !defined( $args{gid} ) ) {
 		warn('Net-LDAP-posixAccount create:3: gid not defined');
-		$self->{error}=3;
-		$self->{errorString}='gid not defined';
+		$self->{error}       = 3;
+		$self->{errorString} = 'gid not defined';
 		return undef;
 	}
 
 	#handles choosing the GID if it is set to AUTO
-	if ($args{gid} eq 'AUTO') {
+	if ( $args{gid} eq 'AUTO' ) {
 		#sets the minUID if it is not defined
-		if (!defined($args{minGID} eq '1001')) {
-			$args{uid}='1001';
+		if ( !defined( $args{minGID} eq '1001' ) ) {
+			$args{uid} = '1001';
 		}
 
 		#sets the maxUID if it is not defined
-		if (!defined($args{minGID})) {
-			$args{uid}='64000';
+		if ( !defined( $args{minGID} ) ) {
+			$args{uid} = '64000';
 		}
 
 		#creates it
-		my $gidhelper=Sys::Group::GIDhelper->new({
-												 min=>$args{minGID},
-												 max=>$args{maxGID}
-												 });
+		my $gidhelper = Sys::Group::GIDhelper->new(
+			{
+				min => $args{minGID},
+				max => $args{maxGID}
+			}
+		);
 		#gets the first free one
-		$args{gid}=$gidhelper->firstfree();
-	}
+		$args{gid} = $gidhelper->firstfree();
+	} ## end if ( $args{gid} eq 'AUTO' )
 
 	#set gecos to name if it is not defined
-	if (!defined($args{gecos})) {
-		if (defined($args{description})) {
-			$args{gecos}=$args{description};
-		}else{
-			$args{gecos}=$args{name};
+	if ( !defined( $args{gecos} ) ) {
+		if ( defined( $args{description} ) ) {
+			$args{gecos} = $args{description};
+		} else {
+			$args{gecos} = $args{name};
 		}
 	}
 
 	#sets the description field
-	if (!defined($args{description})) {
-		if (defined($args{gecos})) {
-			$args{description}=$args{gecos};
+	if ( !defined( $args{description} ) ) {
+		if ( defined( $args{gecos} ) ) {
+			$args{description} = $args{gecos};
 		}
 	}
 
 	#sets the loginShell to '/sbin/nologin' if it is not defined
-	if (!defined($args{loginShell})) {
-		$args{loginShell}='/sbin/nologin';
-	}	
+	if ( !defined( $args{loginShell} ) ) {
+		$args{loginShell} = '/sbin/nologin';
+	}
 
 	#sets the home if it is not specified
-	if (!defined($args{home})) {
-		$args{loginShell}='/home/'.$args{name};
-	}	
+	if ( !defined( $args{home} ) ) {
+		$args{loginShell} = '/home/' . $args{name};
+	}
 
 	#set primary if it is not defined
-	if (!defined($args{primary})) {
-		$args{primary}='uid';
+	if ( !defined( $args{primary} ) ) {
+		$args{primary} = 'uid';
 	}
 
 	#
-	my @primary=('uid', 'cn', 'uidNumber');
-	my $dn=undef;
-	my $primaryInt=0;
-	while (defined($primary[$primaryInt])) {
+	my @primary    = ( 'uid', 'cn', 'uidNumber' );
+	my $dn         = undef;
+	my $primaryInt = 0;
+	while ( defined( $primary[$primaryInt] ) ) {
 		#when a match is found, use it to begin forming the the DN
-		if ($args{primary} eq $primary[$primaryInt]) {
-			$dn=$args{primary}.'=';
+		if ( $args{primary} eq $primary[$primaryInt] ) {
+			$dn = $args{primary} . '=';
 		}
 		$primaryInt++;
 	}
 
 	#error if none is matched
-	if (!defined($dn)) {
+	if ( !defined($dn) ) {
 		warn('Net-LDAP-posixAccount create:4: primary is a invalid value');
-		$self->{error}=4;
-		$self->{errorString}='primary is a invalid value';
+		$self->{error}       = 4;
+		$self->{errorString} = 'primary is a invalid value';
 		return undef;
 	}
 
 	#forms the DN if it is using the UID
-	if ($args{primary} eq 'uid') {
-		$dn=$dn.$args{name};
+	if ( $args{primary} eq 'uid' ) {
+		$dn = $dn . $args{name};
 	}
 
 	#forms the DN if it is using the uidNumber
-	if ($args{primary} eq 'uidNumber') {
-		$dn=$dn.$args{uid};
+	if ( $args{primary} eq 'uidNumber' ) {
+		$dn = $dn . $args{uid};
 	}
 
 	#forms the DN if it is using the CN
-	if ($args{primary} eq 'cn') {
-		$dn=$dn.$args{cn};
+	if ( $args{primary} eq 'cn' ) {
+		$dn = $dn . $args{cn};
 	}
 
 	#full forms the DN
-	$dn=$dn.','.$self->{baseDN};
+	$dn = $dn . ',' . $self->{baseDN};
 
 	#creates a new object
 	my $entry = Net::LDAP::Entry->new;
@@ -301,19 +318,25 @@ sub create {
 	$entry->dn($dn);
 
 	#adds top if it is not topless
-	if (!$args{topless}) {
-		$entry->add(objectClass=>['top']);
+	if ( !$args{topless} ) {
+		$entry->add( objectClass => ['top'] );
 	}
 
 	#adds the various attributes
-	$entry->add(objectClass=>['account', 'posixAccount'],
-				uidNumber=>[$args{uid}], gidNumber=>[$args{gid}],
-				uid=>[$args{name}], homeDirectory=>[$args{home}],
-				gecos=>[$args{gecos}], loginShell=>[$args{loginShell}],
-				cn=>[$args{cn}], description=>[$args{description}]);
+	$entry->add(
+		objectClass   => [ 'account', 'posixAccount' ],
+		uidNumber     => [ $args{uid} ],
+		gidNumber     => [ $args{gid} ],
+		uid           => [ $args{name} ],
+		homeDirectory => [ $args{home} ],
+		gecos         => [ $args{gecos} ],
+		loginShell    => [ $args{loginShell} ],
+		cn            => [ $args{cn} ],
+		description   => [ $args{description} ]
+	);
 
 	return $entry;
-}
+} ## end sub create
 
 =head2 errorBlank
 
@@ -322,15 +345,15 @@ A internal function user for clearing an error.
 =cut
 
 #blanks the error flags
-sub errorBlank{
-	my $self=$_[0];
+sub errorBlank {
+	my $self = $_[0];
 
 	#error handling
-	$self->{error}=undef;
-	$self->{errorString}="";
+	$self->{error}       = undef;
+	$self->{errorString} = "";
 
 	return 1;
-};
+}
 
 =head1 Error Codes
 
@@ -410,4 +433,4 @@ under the same terms as Perl itself.
 
 =cut
 
-1; # End of Net::LDAP::posixAccount
+1;    # End of Net::LDAP::posixAccount
