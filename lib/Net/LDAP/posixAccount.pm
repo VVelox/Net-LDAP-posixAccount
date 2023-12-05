@@ -39,14 +39,11 @@ our $VERSION = '1.0.0';
 This initiates the module. It accepts one arguement, a hash. Please See below
 for accepted values.
 
-=head3 baseDN
+    - baseDN :: This is a required value and is the base that the entry will
+            be created under.
 
-This is a required value and is the base that the entry will be created under.
-
-=head3 topless
-
-This is a perl boolean value. If this is set to true, the objectClass top is
-not present.
+    - topless :: This is a perl boolean value. If this is set to true, the
+            objectClass top is not present.
 
 =cut
 
@@ -87,6 +84,7 @@ sub new {
 		$self->{error}       = 5;
 		$self->{errorString} = 'baseDN is not defined';
 		$self->{perror}      = 1;
+		$self->warn;
 		return $self;
 	}
 
@@ -95,6 +93,7 @@ sub new {
 		$self->{error}       = 6;
 		$self->{errorString} = 'baseDN, "' . $args{baseDN} . '", does not appear to be a valid DN';
 		$self->{perror}      = 1;
+		$self->warn;
 		return $self;
 	}
 
@@ -107,67 +106,38 @@ sub new {
 
 Creates a new Net::LDAP::Entry object.
 
-=head3 name
+    - name :: The name of the user.
 
-The name of the user.
+    - cn :: What the common name should be for a user. This defaults to the username if it is not defined.
 
-=head3 cn
+    - uid ::This is the UID number of a user. If set to 'AUTO', Sys::User::UIDhelper will be used.
 
-What the common name should be for a user. This defaults to the username
-if it is not defined.
+    - gid :: This is GID number of a user. If set to 'AUTO', Sys::Group::GIDhelper will be used.
 
-=head3 uid
+    - gecos :: This is the GECOS field for a user. If it is not defined, the name is used.
 
-This is the UID number of a user. If set to 'AUTO', 'Sys::User::UIDhelper'
-will be used.
+    - loginShell This is the login shell for the user.
+        - default :: /sbin/nologin
 
-=head3 gid
+    - home ::This is the home directory of a user.
+        - default :: /home/$name
 
-This is GID number of a user. If set to 'AUTO', 'Sys::Group::GIDhelper'
-will be used.
+    - primary :: This is the attribute that will be used for when creating the entry.
+            'uid', 'uidNumber', or 'cn' are the accepted value. The default is 'uid'.
 
-=head3 gecos
+    - description :: This is the LDAP description field. If it is not defined, it is set to gecos.
 
-This is the GECOS field for a user. If it is not defined, the name is used.
+    - minUID :: This is the min UID that will be used if 'uid' is set to 'AUTO'.
+        - default :: 1001
 
-=head3 loginShell
+    - maxUID This is the max UID that will be used if 'uid' is set to 'AUTO'.
+        - default :: 64000
 
-This is the login shell for the user. If it is not defined, it is set  to 
-'/sbin/nologin'.
+    - minGID :: This is the min GID that will be used if 'gid' is set to 'AUTO'.
+        - default :: 1001
 
-=head3 home
-
-This is the home directory of a user. If it is not defined, it is set to
-'/home/<name>'.
-
-=head3 primary
-
-This is the attribute that will be used for when creating the entry. 'uid',
-'uidNumber', or 'cn' are the accepted value. The default is 'uid'.
-
-=head3 description
-
-This is the LDAP description field. If it is not defined, it is set to gecos.
-
-=head3 minUID
-
-This is the min UID that will be used if 'uid' is set to 'AUTO'. The default is
-'1001'.
-
-=head3 maxUID
-
-This is the max UID that will be used if 'uid' is set to 'AUTO'. The default is
-'64000'.
-
-=head3 minGID
-
-This is the min GID that will be used if 'gid' is set to 'AUTO'. The default is
-'1001'.
-
-=head3 maxGID
-
-This is the max GID that will be used if 'gid' is set to 'AUTO'. The default is
-'64000'.
+    - maxGID ::  This is the max GID that will be used if 'gid' is set to 'AUTO'.
+        - default :: 64000
 
 =cut
 
@@ -357,6 +327,8 @@ sub errorBlank {
 }
 
 =head1 Error Codes/Flags
+
+L<Error::Helper> is used and all errors are considered fatal.
 
 =head2 1/missing_name
 
